@@ -1,13 +1,19 @@
-name: ci
+name: deploy
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -18,5 +24,11 @@ jobs:
 
       - run: npm ci
       - run: npm run build --if-present
-      - run: npm test --if-present
-      - run: npx cdk synth
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - run: npx cdk deploy GithubActionsStack --require-approval never
